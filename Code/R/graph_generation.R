@@ -1,8 +1,29 @@
 library(igraph)
+library(DESeq2)
+library(dplyr)
 
-load('~/mres_project_bryan/PPMI_IP/gPD_HC/preprocessedData/BL/preprocessed2.RData')
+TS <- 'V04'
+DS <- 'gPD'
+load('~/mres_project_bryan/PPMI_IP/gPD_HC/preprocessedData/V04/preprocessed2.RData')
+genes_of_interest <- colnames(read.csv('~/PhD_Project/Data/Expr_Data/deg_expr.csv'))[-c(1,2,210,211)]
 
-corr_mat <- as.matrix(as.dist(cor(datExpr, method="pearson")))
+vsd <- vst(dds)
+res <- results(dds)
+mat <- datExpr
+mat <- mat[head(order(res$padj), 30), ]
+mat <- mat - rowMeans(mat)
+corr_mat <- as.matrix(as.dist(cor(datExpr[var_genes,], method="pearson")))
+heatmap(corr_mat)
+mat <- cbind(t(mat) , datMeta[,'PD_status'])
+write.csv(mat , './PhD_Project/Data/Expr_Data/matExpr_padj.csv')
+
+
+datExpr.pca <- prcomp(t(datExpr))
+mat <- t(datExpr.pca$x[,1:150])
+corr_mat <- as.matrix(as.dist(cor(mat, method="pearson")))
+heatmap(corr_mat)
+mat <- cbind(t(mat) , datMeta[,'PD_status'])
+write.csv(mat , './PhD_Project/Data/Expr_Data/matExpr_pca.csv')
 
 g <- graph.adjacency(
   corr_mat,
@@ -11,7 +32,6 @@ g <- graph.adjacency(
   diag=FALSE
 )
 
-g_tmp <- g
 
 g <- simplify(g, remove.multiple=TRUE, remove.loops=TRUE)
 
@@ -29,7 +49,7 @@ E(g)$weight <- abs(E(g)$weight)
 #E(g)$arrow.size <- 1.0
 
 # Remove edges below absolute Pearson correlation 0.8
-g <- delete_edges(g, E(g)[which(E(g)$weight<0.98)])
+g <- delete_edges(g, E(g)[which(E(g)$weight<0.3)])
 
 # Remove any vertices remaining that have no edges
 g <- delete.vertices(g, degree(g)==0)
@@ -49,7 +69,7 @@ V(g)$vertex.frame.color <- "white"
 # Scale the size of the vertices to be proportional to the level of expression of each gene represented by each vertex
 # Multiply scaled vales by a factor of 10
 scale01 <- function(x){(x-min(x))/(max(x)-min(x))}
-vSizes <- (scale01(apply(datExpr, 1, mean)) + 1.0) * 10
+vSizes <- (scale01(apply(mat, 1, mean)) + 1.0) * 10
 
 # Amplify or decrease the width of the edges
 edgeweights <- E(g)$weight * 2.0
@@ -59,7 +79,7 @@ mst <- mst(g, algorithm="prim")
 
 # Plot the tree object
 plot(
-  mst,
+  g,
   layout=layout.fruchterman.reingold,
   edge.curved=TRUE,
   vertex.size=vSizes,
@@ -72,8 +92,12 @@ plot(
   main="gPD vs. HC Correlation Network")
 
 
-write_graph(mst , './PhD_Project/Data/Graphs/first_graph.pajek' , 'pajek')
+#write_graph(mst , './PhD_Project/Data/Graphs/first_graph.pajek' , 'pajek')
 
-write_csv(as_long_data_frame(mst) , file = './PhD_Project/Data/Graphs/first_graph.csv')
-mst@names
+write.csv(as_long_data_frame(g) , file = './PhD_Project/Data/Graphs/first_graph.csv')
+
+
+var_genes <- order(apply(datExpr, 1, var) , decreasing = TRUE)[1:200]
+corr_mat <- as.matrix(as.dist(cor(datExpr[var_genes,], method="pearson")))
+heatmap(corr_mat)
 
