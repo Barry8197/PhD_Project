@@ -32,7 +32,7 @@ It is a Logistic Regression implementation used as a baseline comparison to comp
 Implements a L2 logistic regression with log loss used to select the value of C
 
 ## R
-### graph_generation.R
+### geneExpr_graph_gen.R
 Takes any expression matrix and creates a similarity network. The output is in the form of a dataframe.
 Currently this file outputs a $\epsilon$-nearest neighbors similarity where nodes with an absolute similarity less
 than 0.3 are not connected and everything else is connected. 
